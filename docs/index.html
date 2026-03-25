@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Task Manager</title>
+    <meta name="description" content="A small accessible task manager that lets you add, delete, and complete tasks." />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container">
+        <h1>Task Manager</h1>
+        <p class="lead">Add, complete, and remove tasks. Works offline in this browser.</p>
+        <div class="header-controls">
+          <button id="theme-toggle" class="btn" type="button" aria-pressed="false" aria-label="Enable dark mode">Dark</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container" id="main" role="main">
+      <section aria-labelledby="new-task-heading" class="card">
+        <h2 id="new-task-heading" class="visually-hidden">Add a new task</h2>
+
+        <form id="task-form" class="task-form" aria-describedby="form-desc">
+          <p id="form-desc" class="visually-hidden">Enter a task name and press Add. Empty tasks are ignored.</p>
+          <label for="task-input" class="visually-hidden">Task</label>
+          <input id="task-input" name="task" type="text" inputmode="text" autocomplete="off" placeholder="Add a new task" aria-label="Task name" />
+          <button type="submit" class="btn primary">Add</button>
+        </form>
+      </section>
+
+      <section class="card" aria-labelledby="tasks-heading">
+        <h2 id="tasks-heading">Tasks</h2>
+
+        <div class="filters" role="toolbar" aria-label="Filter tasks">
+          <button class="filter-btn" data-filter="all" aria-pressed="true">All</button>
+          <button class="filter-btn" data-filter="pending" aria-pressed="false">Active</button>
+          <button class="filter-btn" data-filter="completed" aria-pressed="false">Completed</button>
+        </div>
+
+        <p id="list-empty" class="muted">No tasks yet. Add your first task above.</p>
+        <ul id="task-list" class="task-list" aria-live="polite"></ul>
+      </section>
+
+      <div id="aria-status" aria-live="polite" class="visually-hidden"></div>
+    </main>
+
+    <footer class="site-footer container">
+      <small>Built with accessible, semantic HTML • Local storage persistence</small>
+    </footer>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
