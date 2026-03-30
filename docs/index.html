@@ -23,11 +23,18 @@
         <h2 id="new-task-heading" class="visually-hidden">Add a new task</h2>
 
         <form id="task-form" class="task-form" aria-describedby="form-desc">
-          <p id="form-desc" class="visually-hidden">Enter a task name and press Add. Empty tasks are ignored.</p>
+          <p id="form-desc" class="visually-hidden">Enter a task name and press Add, or import tasks from a CSV or Excel file. Empty tasks are ignored.</p>
           <label for="task-input" class="visually-hidden">Task</label>
           <input id="task-input" name="task" type="text" inputmode="text" autocomplete="off" placeholder="Add a new task" aria-label="Task name" />
           <button type="submit" class="btn primary">Add</button>
         </form>
+        <div class="import-panel" aria-labelledby="import-heading">
+          <h3 id="import-heading" class="import-title">Import tasks</h3>
+          <p class="muted import-copy">Upload a CSV, XLS, or XLSX file. If the file has columns, use <strong>task</strong> or <strong>title</strong> for task names.</p>
+          <label for="task-file" class="file-picker-label btn" role="button">Choose file</label>
+          <input id="task-file" class="file-picker-input visually-hidden" type="file" accept=".csv,.xls,.xlsx" aria-describedby="import-help" />
+          <p id="import-help" class="muted import-help">Each row can be a task, or include a task/title column. Optional completed/status columns are supported.</p>
+        </div>
       </section>
 
       <section class="card" aria-labelledby="tasks-heading">
@@ -50,6 +57,7 @@
       <small>Built with accessible, semantic HTML • Local storage persistence</small>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
     <script src="app.js" defer></script>
   </body>
 </html>

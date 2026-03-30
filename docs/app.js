@@ -7,9 +7,11 @@ const STORAGE_KEY = 'staticweb.tasks'
 const doc = (sel, ctx = document) => ctx.querySelector(sel)
 const form = doc('#task-form')
 const input = doc('#task-input')
+const fileInput = doc('#task-file')
 const list = doc('#task-list')
 const emptyMessage = doc('#list-empty')
 const ariaStatus = doc('#aria-status')
+const MAX_LEN = 300
 
 let tasks = []
 
@@ -17,6 +19,123 @@ function save(){ try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)) 
 function load(){ try { const raw = localStorage.getItem(STORAGE_KEY); tasks = raw ? JSON.parse(raw) : [] } catch(e){ tasks = [] } }
 
 function announce(msg){ if(ariaStatus) ariaStatus.textContent = msg }
+
+function normalizeTaskTitle(raw){
+  const title = String(raw || '').trim()
+  if(!title) return ''
+  return title.length > MAX_LEN ? title.slice(0, MAX_LEN) : title
+}
+
+function createTask(title, completed = false){
+  return {
+    id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    title,
+    completed: !!completed
+  }
+}
+
+function addTaskFromTitle(rawTitle, completed = false){
+  const title = normalizeTaskTitle(rawTitle)
+  if(!title) return null
+
+  const task = createTask(title, completed)
+  tasks.unshift(task)
+  return task
+}
+
+function parseCompletedValue(value){
+  const normalized = String(value || '').trim().toLowerCase()
+  return normalized === 'true' || normalized === 'yes' || normalized === 'y' || normalized === '1' || normalized === 'done' || normalized === 'completed'
+}
+
+function isSupportedHeader(value){
+  const normalized = String(value || '').trim().toLowerCase()
+  return normalized === 'task' || normalized === 'title' || normalized === 'name' || normalized === 'completed' || normalized === 'done' || normalized === 'status'
+}
+
+function getWorkbookArrayBuffer(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => reject(new Error('Unable to read the selected file.'))
+    reader.readAsArrayBuffer(file)
+  })
+}
+
+function getTaskValueFromRow(row){
+  if(Array.isArray(row)){
+    const firstFilledCell = row.find(cell => String(cell || '').trim())
+    return firstFilledCell || ''
+  }
+
+  if(!row || typeof row !== 'object') return ''
+
+  const keys = Object.keys(row)
+  const preferredKey = keys.find(key => {
+    const normalized = key.trim().toLowerCase()
+    return normalized === 'task' || normalized === 'title' || normalized === 'name'
+  })
+
+  if(preferredKey) return row[preferredKey]
+
+  const firstFilledValue = Object.values(row).find(value => String(value || '').trim())
+  return firstFilledValue || ''
+}
+
+function getCompletedValueFromRow(row){
+  if(!row || Array.isArray(row) || typeof row !== 'object') return false
+
+  const keys = Object.keys(row)
+  const completedKey = keys.find(key => {
+    const normalized = key.trim().toLowerCase()
+    return normalized === 'completed' || normalized === 'done' || normalized === 'status'
+  })
+
+  if(!completedKey) return false
+  return parseCompletedValue(row[completedKey])
+}
+
+async function importTasksFromFile(file){
+  if(!file) return
+
+  if(typeof window.XLSX === 'undefined'){
+    announce('File import is unavailable because the spreadsheet library did not load.')
+    return
+  }
+
+  const buffer = await getWorkbookArrayBuffer(file)
+  const workbook = window.XLSX.read(buffer, { type: 'array' })
+  const worksheet = workbook.Sheets[workbook.SheetNames[0]]
+  const rawRows = window.XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false })
+
+  if(!rawRows.length){
+    announce('No valid tasks were found in the selected file.')
+    return
+  }
+
+  const firstRow = Array.isArray(rawRows[0]) ? rawRows[0] : []
+  const hasHeaderRow = firstRow.some(isSupportedHeader)
+  const parsedRows = hasHeaderRow
+    ? rawRows.slice(1).map(row => Object.fromEntries(firstRow.map((header, index) => [header, row[index] || ''])))
+    : rawRows
+
+  let importedCount = 0
+  parsedRows.forEach(row => {
+    const taskValue = getTaskValueFromRow(row)
+    const completed = getCompletedValueFromRow(row)
+    const addedTask = addTaskFromTitle(taskValue, completed)
+    if(addedTask) importedCount += 1
+  })
+
+  if(!importedCount){
+    announce('No valid tasks were found in the selected file.')
+    return
+  }
+
+  save()
+  render()
+  announce(`Imported ${importedCount} task${importedCount === 1 ? '' : 's'} from ${file.name}`)
+}
 
 function createTaskElement(t){
   const li = document.createElement('li')
@@ -88,7 +207,7 @@ function render(){
 form.addEventListener('submit', e => {
   e.preventDefault()
   const raw = input.value || ''
-  const title = raw.trim()
+  const title = normalizeTaskTitle(raw)
   // Validation: prevent empty or whitespace-only tasks
   if(!title){
     input.setAttribute('aria-invalid', 'true')
@@ -99,17 +218,29 @@ form.addEventListener('submit', e => {
     return
   }
 
-  // Trimmed title used; enforce a reasonable max length
-  const MAX_LEN = 300
-  const finalTitle = title.length > MAX_LEN ? title.slice(0, MAX_LEN) : title
-  const task = { id: Date.now().toString(36), title: finalTitle, completed: false }
-  tasks.unshift(task)
+  const task = addTaskFromTitle(title, false)
   input.value = ''
   save()
   render()
   announce(`Added ${task.title}`)
   input.focus()
 })
+
+if(fileInput){
+  fileInput.addEventListener('change', async e => {
+    const [file] = Array.from(e.target.files || [])
+    if(!file) return
+
+    try{
+      await importTasksFromFile(file)
+    }catch(error){
+      console.error(error)
+      announce('Unable to import tasks from that file.')
+    }finally{
+      fileInput.value = ''
+    }
+  })
+}
 const filterButtons = Array.from(document.querySelectorAll('.filter-btn'))
 let currentFilter = 'all'
 
